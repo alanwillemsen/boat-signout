@@ -51,10 +51,13 @@ public class GaeUser implements Serializable {
 
     @Id
     private String name;
-    
+
     private String displayName;
-    
+
     private String pictureUrl;
+
+    /** Discord user id, if this account was created via "Login with Discord". Null otherwise. */
+    private String discordId;
     
     private String passwordHash;
     
@@ -97,6 +100,26 @@ public class GaeUser implements Serializable {
     
     public GaeUser(String name, String displayName, String password, Set<String> roles, Set<String> permissions) {
         this(name, displayName, password, roles, permissions, false);
+    }
+
+    /** The synthetic principal / @Id used for a Discord-backed account. */
+    public static String discordPrincipal(String discordId) {
+        return "discord:" + discordId;
+    }
+
+    /**
+     * Build a registered user that logs in via Discord.  There is no password;
+     * the display name is the user's Discord server nickname and the picture is
+     * their Discord avatar.  Roles match a normal registered member.
+     */
+    public static GaeUser discordUser(String discordId, String displayName, String pictureUrl) {
+        Set<String> roles = new HashSet<String>();
+        roles.add("user");
+        roles.add(ROLE_MEMBER);
+        GaeUser user = new GaeUser(discordPrincipal(discordId), displayName, null, roles, new HashSet<String>(), true);
+        user.discordId = discordId;
+        user.pictureUrl = pictureUrl;
+        return user;
     }
 
     GaeUser(String name, String displyName, String password, Set<String> roles, Set<String> permissions, boolean isRegistered) {
@@ -168,6 +191,10 @@ public class GaeUser implements Serializable {
         return permissions;
     }
     
+    public String getDiscordId() {
+        return discordId;
+    }
+
     public String getPictureUrl() {
         return pictureUrl;
     }

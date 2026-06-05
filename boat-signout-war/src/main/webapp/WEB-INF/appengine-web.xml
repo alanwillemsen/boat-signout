@@ -8,6 +8,12 @@
     <system-properties>
         <property name="java.util.logging.config.file" value="WEB-INF/logging.properties"/>
         <property name="email.from" value="crcboats@gmail.com"/>
+        <!-- Discord OAuth ("Login with Discord"). Only members of the given server are accepted.
+             clientId and serverId are not secrets (the clientId is sent to the browser anyway).
+             The client SECRET is stored in Google Secret Manager (secret id "discord-client-secret")
+             and read at runtime; it is deliberately NOT in this file. -->
+        <property name="discord.clientId" value="1512289898810314913"/>
+        <property name="discord.serverId" value="1466219412519522346"/>
     </system-properties>
     <sessions-enabled>true</sessions-enabled>
     <!--
@@ -20,10 +26,27 @@
     </inbound-services>
 
     <static-files>
-        <include path="**" expiration="10m"/>
-        <include path="/images/*" expiration="10m"/>
+        <!-- Cache only real static assets. Filenames here aren't fingerprinted, so keep
+             it short (10m), matching the app's previous behaviour. First match wins. -->
         <include path="/**.css" expiration="10m"/>
         <include path="/**.js" expiration="10m"/>
+        <include path="/**.png" expiration="10m"/>
+        <include path="/**.jpg" expiration="10m"/>
+        <include path="/**.jpeg" expiration="10m"/>
+        <include path="/**.gif" expiration="10m"/>
+        <include path="/**.svg" expiration="10m"/>
+        <include path="/**.ico" expiration="10m"/>
+        <include path="/**.woff" expiration="10m"/>
+        <include path="/**.woff2" expiration="10m"/>
+        <include path="/**.ttf" expiration="10m"/>
+        <include path="/**.eot" expiration="10m"/>
+        <!-- Everything else (HTML pages, and the "/" welcome file): expiration="0s" yields
+             "Cache-Control: public, max-age=0", which forces the browser AND Google's edge
+             to revalidate every request. Since a deploy changes each file's ETag, revalidation
+             returns the new content immediately, so deploys are never served stale. (App Engine
+             applies a default expiration when none is given, so we must set 0s explicitly. The
+             root "/" does not end in .html, so it is caught by this "**" default.) -->
+        <include path="**" expiration="0s"/>
     </static-files>
 
     <resource-files>

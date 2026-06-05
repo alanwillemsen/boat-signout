@@ -95,7 +95,9 @@ $(document).ready(function() {
                 $("html").removeClass("shiro-none-active");
                 if (data.message == "known" && data.authenticated == "true") {
                 	$("html").addClass("shiro-user-active");
-                    $("span.shiro-principal").text(data.name);
+                    // Prefer the display name (e.g. Discord server nickname) over the raw
+                    // principal, which for Discord logins is the internal "discord:<id>".
+                    $("span.shiro-principal").text(data.displayName || data.name);
                     if (data.admin == "true") {
                         $("html").addClass("shiro-admin-active");
                     }else{
