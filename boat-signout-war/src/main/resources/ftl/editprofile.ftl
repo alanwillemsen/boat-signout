@@ -20,7 +20,7 @@
 	            </div>
 	            
                 <div class="row">
-                <img src="/${pictureUrl!'img/rower.png'}" style="padding:2px;"/>
+                <#assign picSrc = pictureUrl!'img/rower.png'><img src="${picSrc?starts_with('http')?string(picSrc, '/' + picSrc)}" style="padding:2px; width:150px; height:150px; border-radius:50%; object-fit:cover;"/>
                 </div>
 	            
                 <div class="row">

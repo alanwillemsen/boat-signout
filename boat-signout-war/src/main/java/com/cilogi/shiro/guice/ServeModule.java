@@ -43,6 +43,7 @@ import com.cilogi.shiro.web.user.SettingsServlet;
 import com.cilogi.shiro.web.user.StatusServlet;
 import com.cilogi.shiro.web.user.UserListServlet;
 import com.cilogi.shiro.web.user.UserSuspendServlet;
+import com.cilogi.shiro.web.discord.DiscordAuthServlet;
 //import com.google.appengine.tools.appstats.AppstatsFilter;
 //import com.google.appengine.tools.appstats.AppstatsServlet;
 import com.google.common.base.Preconditions;
@@ -83,6 +84,9 @@ public class ServeModule extends ServletModule {
         serve("/systemSettings*").with(SystemSettingsServlet.class);
             // this one is here so that the default login filter works
         serve("/login").with(LoginServlet.class);
+            // Login with Discord (OAuth2)
+        serve("/discord/login").with(DiscordAuthServlet.class);
+        serve("/discord/callback").with(DiscordAuthServlet.class);
             // Lets check mail to see when stuff bounces
         serve("/_ah/mail/*").with(MailReceiveServlet.class);
 //        serve("/appstats/*").with(AppstatsServlet.class);

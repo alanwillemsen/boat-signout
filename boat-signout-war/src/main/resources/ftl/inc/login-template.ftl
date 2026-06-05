@@ -22,3 +22,10 @@
     </div>
 </form>
 <a id="loginRegister" href="/register.ftl" style="margin-left: 1em; margin-bottom: 1em;">Register</a>
+
+<div style="margin: 1em;">
+    <a id="loginDiscord" href="/discord/login" class="btn"
+       style="background-color:#5865F2; color:#fff; border-color:#5865F2;">
+        Login with Discord
+    </a>
+</div>

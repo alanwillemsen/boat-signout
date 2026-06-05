@@ -5,7 +5,7 @@
 	<ul class="unstyled list-unstyled">
 		<% _.each(events, function(event) { %>
 			<li id="<%= event.id %>">
-				<a href="/profile/_<%= event.encryptedUserName %>"><img src="/<%= event.pictureUrl %>" style="height: 40px; width: 40px; margin:2px;"></a>&nbsp;
+				<a href="/profile/_<%= event.encryptedUserName %>"><img src="<%= /^https?:\/\//.test(event.pictureUrl) ? event.pictureUrl : '/' + event.pictureUrl %>" style="height: 40px; width: 40px; margin:2px; border-radius:50%; object-fit:cover;"></a>&nbsp;
 				<b><%= event.start_hour %> - <%= event.end_hour %></b>, <%= event.boatDisplayName %>, <%= event.userDisplayName %> &nbsp;
 				<%if(event.canDelete){ %> <span data-id="<%= event.id %>" data-event="<%= event.start_hour %> - <%= event.end_hour %> <%= event.boatDisplayName %>" class="glyphicon glyphicon-trash"></span> <%}%>
 			</li>
