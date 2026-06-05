@@ -38,6 +38,7 @@ import com.cilogi.shiro.web.MailReceiveServlet;
 import com.cilogi.shiro.web.WakeServlet;
 import com.cilogi.shiro.web.user.ConfirmServlet;
 import com.cilogi.shiro.web.user.LoginServlet;
+import com.cilogi.shiro.web.user.LogoutServlet;
 import com.cilogi.shiro.web.user.RegisterServlet;
 import com.cilogi.shiro.web.user.SettingsServlet;
 import com.cilogi.shiro.web.user.StatusServlet;
@@ -84,6 +85,9 @@ public class ServeModule extends ServletModule {
         serve("/systemSettings*").with(SystemSettingsServlet.class);
             // this one is here so that the default login filter works
         serve("/login").with(LoginServlet.class);
+            // Custom logout: ignores browser prefetch/prerender so users aren't
+            // silently logged out mid-session (see LogoutServlet).
+        serve("/logout").with(LogoutServlet.class);
             // Login with Discord (OAuth2)
         serve("/discord/login").with(DiscordAuthServlet.class);
         serve("/discord/callback").with(DiscordAuthServlet.class);

@@ -16,10 +16,13 @@
         <property name="discord.serverId" value="1466219412519522346"/>
     </system-properties>
     <sessions-enabled>true</sessions-enabled>
-    <!--
-        Changes to a session are put into the data store asynchronously, which produces some risk
-        of losing sync, but with a big improvement in latency, which means cheaper.-->
-    <async-session-persistence enabled="true" queue-name="default"/>
+    <!-- Persist sessions to the datastore SYNCHRONOUSLY. Async persistence is cheaper but,
+         as the original note below warned, "produces some risk of losing sync": under prod
+         memory pressure memcache can evict a freshly-created session before the async
+         datastore write lands, so the user is logged in for a moment and then bounced back
+         to the login page. Synchronous writes make the session durable immediately on login.
+         (Original note: async persistence trades that risk for lower latency / cost.) -->
+    <async-session-persistence enabled="false"/>
 
     <inbound-services>
       <service>mail</service>

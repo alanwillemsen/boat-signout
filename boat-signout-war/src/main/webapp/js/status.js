@@ -46,28 +46,25 @@ shiro.status = (function(log) {
 
     function runStatus(options) {
         var onSuccess = options.success || successDefault(),
-            onError = options.error || errorDefault(),
-            data = getStatus();
+            onError = options.error || errorDefault();
 
-        if (data) {
-            log("Saved status");
-            onSuccess(data, 'success');
-        }  else {
-        	var statusUrl = shiro.userBaseUrl+"/status?" + Date.now();
-            log("Ajax status: " + statusUrl);
-			$.ajax(statusUrl, {
-                type: "GET",
-                dataType: "json",
-                success: function(data, status) {
-                    setStatus(data);
-                    onSuccess(data, status);
-                },
-                error: function(xhr) {
-                    clearStatus();
-                    onError(xhr);
-                }
-            });
-        }
+        // Always ask the server for the current auth state. We used to cache it in
+        // localStorage for 5 minutes, but that caused a login loop: after logging in,
+        // the page read a stale "unknown" from the cache and showed the login modal
+        // again even though the server session was valid.
+        var statusUrl = shiro.userBaseUrl+"/status?" + Date.now();
+        log("Ajax status: " + statusUrl);
+        $.ajax(statusUrl, {
+            type: "GET",
+            dataType: "json",
+            success: function(data, status) {
+                onSuccess(data, status);
+            },
+            error: function(xhr) {
+                clearStatus();
+                onError(xhr);
+            }
+        });
     }
 
     function clearStatus() {
@@ -145,7 +142,11 @@ $(document).ready(function() {
     });
 
     $("#logout").click(function(e) {
+        // Log out via POST. GET /logout never logs out (browsers prefetch/prerender the
+        // link, which would otherwise bounce users mid-session), so we must POST.
+        e.preventDefault();
         shiro.status.clearStatus();
         shiro.spin.start($("#spinner"));
+        $.ajax({ type: "POST", url: "/logout", complete: function() { window.location = "/"; } });
     });
 });
