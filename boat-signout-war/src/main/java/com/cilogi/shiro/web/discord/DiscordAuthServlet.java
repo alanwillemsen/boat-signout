@@ -68,6 +68,15 @@ public class DiscordAuthServlet extends BaseServlet {
     }
 
     private void handleLogin(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        // The "Sign in with Discord" link is always in the page DOM (the login modal),
+        // so browsers prefetch/prerender it. This endpoint stops the current session (below),
+        // so a speculative hit would silently log the user out -> login loop. Ignore those.
+        if (isSpeculativeRequest(request)) {
+            response.setHeader("Cache-Control", "no-store");
+            response.setStatus(204);
+            return;
+        }
+
         String clientId = System.getProperty(P_CLIENT_ID);
         if (clientId == null || clientId.isEmpty()) {
             issue(MIME_TEXT_PLAIN, HTTP_STATUS_INTERNAL_SERVER_ERROR,
@@ -76,8 +85,18 @@ public class DiscordAuthServlet extends BaseServlet {
         }
 
         // CSRF state, stashed in the session and checked on the way back.
+        // Start the flow from a FRESH session (session-fixation protection) and do it here,
+        // while the user is still on our site -- a same-site context where mobile browsers
+        // reliably accept the new session cookie. The callback then reuses this same session
+        // instead of swapping it (which mobile browsers refuse to do across the cross-site
+        // OAuth redirect, bouncing the user back to login).
         String state = new SecureRandomNumberGenerator().nextBytes().toHex();
-        SecurityUtils.getSubject().getSession().setAttribute(STATE_ATTR, state);
+        Subject subject = SecurityUtils.getSubject();
+        Session existing = subject.getSession(false);
+        if (existing != null) {
+            existing.stop();
+        }
+        subject.getSession(true).setAttribute(STATE_ATTR, state);
 
         String url = AUTHORIZE_URL
                 + "?response_type=code"
@@ -145,8 +164,13 @@ public class DiscordAuthServlet extends BaseServlet {
             }
             dao.saveUser(user, !exists);
 
-            Subject subject = SecurityUtils.getSubject();
-            loginWithNewSession(new DiscordAuthenticationToken(principal), subject);
+            // Authenticate the EXISTING session rather than swapping in a new one
+            // (loginWithNewSession). That session's cookie already survived the round-trip to
+            // Discord -- the state check above passed -- so reusing it avoids setting a brand
+            // new session cookie on the response to a cross-site OAuth redirect, which mobile
+            // browsers often won't persist (causing an immediate bounce back to login).
+            // Fixation is still covered: the session was freshly minted in /discord/login.
+            SecurityUtils.getSubject().login(new DiscordAuthenticationToken(principal));
 
             response.sendRedirect("/");
         } catch (InterruptedException e) {

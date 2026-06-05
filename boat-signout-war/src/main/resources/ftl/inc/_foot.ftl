@@ -30,7 +30,7 @@
 <script src="${staticBaseUrl}js/init.js"></script>
 <script src="${staticBaseUrl}js/spin.js"></script>
 <script src="${staticBaseUrl}js/log.js"></script>
-<script src="${staticBaseUrl}js/status.js"></script>
+<script src="${staticBaseUrl}js/status.js?v=20260605"></script>
 <script src="${staticBaseUrl}js/login.js"></script>
 
 <script>

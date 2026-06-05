@@ -120,6 +120,28 @@ public class BaseServlet extends HttpServlet implements ParameterNames, MimeType
     }
 
     /**
+     * True if this looks like a speculative (prefetch/prerender) request rather than a real
+     * user action. Browsers speculatively fetch links, so any endpoint that changes server
+     * state on GET (login, logout) must ignore these or users get logged out mid-session.
+     */
+    protected static boolean isSpeculativeRequest(HttpServletRequest request) {
+        String secPurpose = request.getHeader("Sec-Purpose"); // Chrome: "prefetch", "prefetch;prerender"
+        if (secPurpose != null && (secPurpose.contains("prefetch") || secPurpose.contains("prerender"))) {
+            return true;
+        }
+        String purpose = request.getHeader("Purpose"); // older browsers
+        if ("prefetch".equalsIgnoreCase(purpose)) {
+            return true;
+        }
+        String xPurpose = request.getHeader("X-Purpose");
+        if (xPurpose != null && xPurpose.toLowerCase().contains("prefetch")) {
+            return true;
+        }
+        String xMoz = request.getHeader("X-moz"); // Firefox
+        return xMoz != null && xMoz.toLowerCase().contains("prefetch");
+    }
+
+    /**
      * Login and make sure you then have a new session.  This helps prevent session fixation attacks.
      *
      * @param token
