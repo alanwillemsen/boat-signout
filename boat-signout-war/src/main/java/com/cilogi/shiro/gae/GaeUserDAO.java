@@ -22,11 +22,13 @@
 package com.cilogi.shiro.gae;
 
 
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
+import com.googlecode.objectify.Key;
 import com.googlecode.objectify.ObjectifyService;
 
 import static com.googlecode.objectify.ObjectifyService.ofy;
@@ -120,9 +122,37 @@ public class GaeUserDAO extends BaseDAO<GaeUser> {
     /** All users. Going through the DAO (rather than calling ofy() directly from a servlet)
      *  guarantees this class is loaded, and with it the static block that registers GaeUser
      *  with Objectify -- otherwise a query can hit an instance where GaeUser was never
-     *  registered and fail with "No class ... was registered". */
+     *  registered and fail with "No class ... was registered".
+     *
+     *  Resilient to corrupt/legacy rows: a single entity that won't deserialize (e.g. an old
+     *  account whose 'salt' was stored as Text instead of Blob) makes the one-shot bulk load
+     *  throw and would otherwise take down the whole members list. So on bulk failure we fall
+     *  back to loading per key (keys-only queries don't deserialize properties) and skip +
+     *  log the bad ones instead of failing the entire page. */
     public List<GaeUser> listAllUsers() {
-        return ofy().load().type(GaeUser.class).list();
+        try {
+            return ofy().load().type(GaeUser.class).list();
+        } catch (RuntimeException bulkFailure) {
+            LOG.warning("Bulk user load failed (" + bulkFailure.getMessage()
+                    + "); loading per-entity and skipping any that won't deserialize");
+            List<GaeUser> users = new ArrayList<>();
+            int skipped = 0;
+            for (Key<GaeUser> key : ofy().load().type(GaeUser.class).keys().list()) {
+                try {
+                    GaeUser user = ofy().load().key(key).now();
+                    if (user != null) {
+                        users.add(user);
+                    }
+                } catch (RuntimeException e) {
+                    skipped++;
+                    LOG.warning("Skipping unloadable user '" + key.getName() + "': " + e.getMessage());
+                }
+            }
+            if (skipped > 0) {
+                LOG.warning("Members list skipped " + skipped + " corrupt user record(s)");
+            }
+            return users;
+        }
     }
 
     public long getCount() {
