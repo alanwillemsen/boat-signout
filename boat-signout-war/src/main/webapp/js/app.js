@@ -56,6 +56,15 @@ function pad(s) { return (s < 10) ? '0' + s : s; }
 
 		return false; // avoid to execute the actual submit of the form.
 	});
+
+	// "Reserve Multiple" opens the availability grid for the same day.
+	$("#reserve-multiple-button").click(function() {
+		var dt = moment().format('YYYY-MM-DD');
+		if(calendar.selectedDate){
+			dt = calendar.selectedDate;
+		}
+		location.href = "reservemulti.ftl?dt=" + dt;
+	});
 	
 	
 }(jQuery));

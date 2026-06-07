@@ -20,6 +20,9 @@
 					</form>
 				</div>
 				<div class="btn-group">
+					<button type="button" class="btn btn-primary" id="reserve-multiple-button">Reserve Multiple</button>
+				</div>
+				<div class="btn-group">
 					<button class="btn btn-info" data-calendar-nav="prev">&lt;&lt; Prev</button>
 					<button class="btn btn-default" data-calendar-nav="today">Today</button>
 					<button class="btn btn-info" data-calendar-nav="next">Next &gt;&gt;</button>
@@ -50,6 +53,6 @@
 		<#include "inc/footer.ftl">
 	</div>
 		<#include "inc/_foot.ftl">
-		<script type="text/javascript" src="js/app.js"></script>
+		<script type="text/javascript" src="js/app.js?v=20260607-2"></script>
 </body>
 </html>
