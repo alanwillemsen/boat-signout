@@ -48,9 +48,19 @@ public class FreemarkerServlet extends BaseServlet {
         super(daoProvider);
     }
 
+    // Templates that only admins may view. Requested directly (e.g. /boats.ftl); non-admins are
+    // bounced to the home page. (The matching write endpoints are also admin-gated server-side.)
+    private static final String[] ADMIN_ONLY_PAGES = { "boats.ftl" };
+
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
         String uri = request.getRequestURI();
+        for (String page : ADMIN_ONLY_PAGES) {
+            if (uri.endsWith(page) && !isCurrentUserAdmin()) {
+                response.sendRedirect("/");
+                return;
+            }
+        }
         showView(response, uri, mapping(request));
     }
 

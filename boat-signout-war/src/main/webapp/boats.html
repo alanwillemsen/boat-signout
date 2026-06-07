@@ -52,7 +52,7 @@
 
 
     <link href="js/lib/jtable/themes/metro/darkgray/jtable.min.css" rel="stylesheet" type="text/css" />
-    
+
 </head>
 
 <body>
@@ -73,6 +73,7 @@
 				<ul class="nav navbar-nav navbar-right shiro-user">
 					<li><a id="monthviewLink" href="/monthview.ftl">Calendar</a></li>
 					<li class="shiro-admin"><a id="membersLink" href="/users.ftl">Members</a></li>
+					<li class="shiro-admin"><a id="boatsLink" href="/boats.ftl">Boats</a></li>
 					<li><a id="profileLink" href="/profile">Profile</a></li>
 					<li><a id="logout" href="/logout">Sign Out <span class="shiro-principal"></span></a></li>
 				</ul>
@@ -187,12 +188,37 @@
 <script type="text/javascript">
 $(document).ready(function () {
 
+    // The server stores rowable/event as booleans (the reservation pages rely on that), but
+    // jtable's dropdown ("options") matches option keys to the value with ==, and 'true' == true
+    // is false in JS -- so booleans never match a string option and the dropdown can't display or
+    // preselect. We normalise these two fields to 'true'/'false' strings as records come IN from
+    // the server and let them go back OUT as the strings the dropdown posts (which the servlet
+    // already parses). This keeps the dropdowns working without changing what other pages receive.
+    function boolToStr(record) {
+        if (record) {
+            record.rowable = record.rowable ? 'true' : 'false';
+            record.event = record.event ? 'true' : 'false';
+        }
+        return record;
+    }
+    function boatAction(url, postData) {
+        return $.Deferred(function ($dfd) {
+            $.ajax({ url: url, type: 'POST', dataType: 'json', data: postData })
+                .done(function (data) {
+                    if (data && data.Records) { $.each(data.Records, function (i, r) { boolToStr(r); }); }
+                    if (data && data.Record) { boolToStr(data.Record); }
+                    $dfd.resolve(data);
+                })
+                .fail(function () { $dfd.reject(); });
+        });
+    }
+
     $('#BoatTableContainer').jtable({
         title: 'Boats',
         actions: {
-            listAction: '/boats',
-            createAction: '/boats/post',
-            updateAction: '/boats/post',
+            listAction: function (postData) { return boatAction('/boats', postData); },
+            createAction: function (postData) { return boatAction('/boats/post', postData); },
+            updateAction: function (postData) { return boatAction('/boats/post', postData); },
             deleteAction: '/boats/delete'
         },
         fields: {
@@ -200,7 +226,7 @@ $(document).ready(function () {
         		key: true,
             	create: true,
         		title: 'Boat name',
-                width: '30%'                
+                width: '30%'
             },
             displayName: {
                 create: true,
@@ -209,19 +235,17 @@ $(document).ready(function () {
                 width: '30%'
             },
         	rowable: {
-        		type: 'checkbox',
         		create: true,
-        		default: 'true',
             	title: 'Status',
-            	values: { 'false': 'not rowable', 'true': 'rowable' },
-                width: '10%'                
+            	options: { 'true': 'rowable', 'false': 'not rowable' },
+            	defaultValue: 'true',
+                width: '10%'
             },
             event: {
-                type: 'checkbox',
                 create: true,
-                default: 'false',
                 title: 'Event/Boat',
-                values: { 'false': 'boat', 'true': 'event' },
+                options: { 'false': 'boat', 'true': 'event' },
+                defaultValue: 'false',
                 width: '10%'
             },
         	warningMessage: {

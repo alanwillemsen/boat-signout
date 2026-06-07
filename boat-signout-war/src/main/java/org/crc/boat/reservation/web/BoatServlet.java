@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.shiro.SecurityUtils;
 import org.crc.boat.reservation.dao.BoatDao;
 import org.crc.boat.reservation.model.Boat;
 
@@ -42,6 +43,12 @@ public class BoatServlet extends HttpServlet {
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws JsonParseException, JsonMappingException, IOException {
         String action = StringUtils.substringAfterLast(req.getRequestURI(), "/");
+        // Creating/updating/deleting boats is admin-only. (GET /boats stays open: the
+        // reservation flows need the boat list for every member.)
+        if (("post".equals(action) || "jsonlist".equals(action) || "delete".equals(action)) && !isAdmin()) {
+            mapper.writeValue(resp.getOutputStream(), new JsonErrorResponse("Only admins can manage boats"));
+            return;
+        }
         switch (action) {
         case "post":
             creatUpdate(req, resp);
@@ -60,6 +67,10 @@ public class BoatServlet extends HttpServlet {
             break;
         }
 
+    }
+
+    private boolean isAdmin() {
+        return SecurityUtils.getSubject().hasRole("admin");
     }
 
     protected void list(HttpServletRequest req, HttpServletResponse resp) throws IOException {
