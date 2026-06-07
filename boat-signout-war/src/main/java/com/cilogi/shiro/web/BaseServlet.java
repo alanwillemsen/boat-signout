@@ -23,6 +23,7 @@ package com.cilogi.shiro.web;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Map;
 import java.util.logging.Logger;
 
@@ -58,6 +59,11 @@ public class BaseServlet extends HttpServlet implements ParameterNames, MimeType
     protected final int HTTP_STATUS_NOT_FOUND = 404;
     protected final int HTTP_STATUS_FORBIDDEN = 403;
     protected final int HTTP_STATUS_INTERNAL_SERVER_ERROR = 500;
+
+    /** Don't write lastActive on every single request -- only refresh it once the recorded
+     *  value is older than this. Keeps the per-request datastore write down to roughly one
+     *  per active user per 5 minutes while still giving admins an accurate "last seen". */
+    private static final long LAST_ACTIVE_THROTTLE_MS = 5 * 60 * 1000L;
 
     private CreateDoc create;
 
@@ -179,7 +185,36 @@ public class BaseServlet extends HttpServlet implements ParameterNames, MimeType
             return null;
         } else {
             GaeUserDAO dao = daoProvider.get();
-            return dao.findUser(email);
+            GaeUser user = dao.findUser(email);
+            // Treat a suspended user as "not logged in" so revoking access takes effect on
+            // the user's very next request, even if their session is still valid (we now
+            // keep sessions alive for 90 days). Callers already redirect a null user to
+            // /logout, which clears the session. Without this, the realm only blocks
+            // suspended users at login/role-checks, so a suspended member could keep
+            // reserving boats until their long-lived session finally expired.
+            if (user != null && user.isSuspended()) {
+                return null;
+            }
+            if (user != null) {
+                touchLastActive(user, dao);
+            }
+            return user;
+        }
+    }
+
+    /** Record that the user was just active, but at most once per LAST_ACTIVE_THROTTLE_MS to
+     *  avoid a datastore write on every request. Best-effort: a failure here must never break
+     *  the request, so we just log it. */
+    private void touchLastActive(GaeUser user, GaeUserDAO dao) {
+        Date last = user.getLastActive();
+        long now = System.currentTimeMillis();
+        if (last == null || now - last.getTime() > LAST_ACTIVE_THROTTLE_MS) {
+            try {
+                user.setLastActive(new Date(now));
+                dao.saveUser(user, false);
+            } catch (Exception e) {
+                LOG.warning("Could not update lastActive for " + user.getName() + ": " + e.getMessage());
+            }
         }
     }
     

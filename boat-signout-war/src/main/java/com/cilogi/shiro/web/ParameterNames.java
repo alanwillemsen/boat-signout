@@ -33,6 +33,7 @@ public interface ParameterNames {
     String DATATABLE_LENGTH = "iDisplayLength";
     String DATATABLE_SEARCH = "sSearch";
 
+    String ADMIN = "admin";
     String DELETE = "delete";
     String FORGOT = "forgot";
     String INVALIDATE_CACHE = "invalidateCache";

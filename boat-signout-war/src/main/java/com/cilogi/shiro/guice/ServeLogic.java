@@ -36,7 +36,7 @@ import com.google.common.base.Charsets;
 import com.google.inject.AbstractModule;
 import com.google.inject.Scopes;
 import com.google.inject.name.Names;
-import com.googlecode.objectify.cache.AsyncCacheFilter;
+import com.googlecode.objectify.ObjectifyFilter;
 
 import freemarker.template.Configuration;
 import freemarker.template.TemplateModelException;
@@ -60,7 +60,11 @@ public class ServeLogic extends AbstractModule {
         bind(ShiroFilter.class).in(Scopes.SINGLETON);
 //        bind(AppstatsServlet.class).in(Scopes.SINGLETON);
 //        bind(AppstatsFilter.class).in(Scopes.SINGLETON);
-        bind(AsyncCacheFilter.class).in(Scopes.SINGLETON);// needed to sync the datastore if its running async
+        // ObjectifyFilter begins a fresh Objectify context per request and calls
+        // ObjectifyService.reset() at the end (it also runs AsyncCacheFilter internally, so
+        // it replaces the old standalone AsyncCacheFilter). Without this reset, Objectify's
+        // per-thread session cache leaks across requests and serves stale entities.
+        bind(ObjectifyFilter.class).in(Scopes.SINGLETON);
         bindString("email.from", "crcboats@gmail.com");
         bindString("userBaseUrl", userBaseUrl);
         bindString("staticBaseUrl", staticBaseUrl);

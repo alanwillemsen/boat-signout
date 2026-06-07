@@ -50,6 +50,10 @@ public class ProfilePictureServlet extends BaseServlet {
             return;
         }
         ProfilePicture pic = profilePictureDao.getProfilePictureById(Long.valueOf(id));
+        if (pic == null) {
+            resp.sendError(HTTP_STATUS_NOT_FOUND);
+            return;
+        }
         IOUtils.write(pic.getImage(), resp.getOutputStream());
     }
 
@@ -67,15 +71,22 @@ public class ProfilePictureServlet extends BaseServlet {
                     resp.sendRedirect("/profile/");
                     return;
                 }
+                // No current user (not logged in, or suspended/deleted mid-session): don't
+                // NPE -- just bounce to logout so the client re-authenticates.
+                GaeUser currentUser = getCurrentGaeUser();
+                if (currentUser == null) {
+                    resp.sendRedirect("/logout");
+                    return;
+                }
+
                 ImagesService imagesService = ImagesServiceFactory.getImagesService();
                 Image oldImage = ImagesServiceFactory.makeImage(byteArray);
                 Transform resize = ImagesServiceFactory.makeResize(400, 400, 0.5d, 0.5d);
                 Image newImage = imagesService.applyTransform(resize, oldImage);
-                
-                ProfilePicture profilePic = new ProfilePicture(getCurrentGaeUser().getName(), newImage.getImageData());
+
+                ProfilePicture profilePic = new ProfilePicture(currentUser.getName(), newImage.getImageData());
                 profilePic = profilePictureDao.saveProfilePicture(profilePic);
-                
-                GaeUser currentUser = getCurrentGaeUser();
+
                 currentUser.setPictureUrl("picture/" + profilePic.getId());
                 daoProvider.get().saveUser(currentUser, false);
             }

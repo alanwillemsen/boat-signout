@@ -72,9 +72,11 @@ public class StatusServlet extends BaseServlet {
         LOG.info("status GET");
         try {
             Subject subject = SecurityUtils.getSubject();
-            boolean isKnown = subject.isAuthenticated();
-            if (isKnown) {
-                GaeUser currentGaeUser = getCurrentGaeUser();
+            // getCurrentGaeUser() returns null for a user who has since been suspended or
+            // deleted (even if their session is still valid), so treat that as "unknown" --
+            // the client then shows the login/guest state instead of us NPEing on getName().
+            GaeUser currentGaeUser = subject.isAuthenticated() ? getCurrentGaeUser() : null;
+            if (currentGaeUser != null) {
                 LOG.info("status, known: " + currentGaeUser.getName());
                 issueJson(response, HTTP_STATUS_OK,
                         MESSAGE, "known",

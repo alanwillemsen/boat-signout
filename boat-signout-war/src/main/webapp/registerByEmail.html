@@ -39,6 +39,14 @@
         display: none;
     }
 
+    /* .shiro-admin elements are only for admins. Hide them in every state except when
+       status.js has added shiro-admin-active to <html> (i.e. the logged-in user is an admin). */
+    .shiro-none-active .shiro-admin,
+    .shiro-guest-active .shiro-admin,
+    .shiro-authenticated-active .shiro-admin {
+        display: none;
+    }
+
 </style>
 
 
@@ -62,6 +70,7 @@
 				</ul>
 				<ul class="nav navbar-nav navbar-right shiro-user">
 					<li><a id="monthviewLink" href="/monthview.ftl">Calendar</a></li>
+					<li class="shiro-admin"><a id="membersLink" href="/users.ftl">Members</a></li>
 					<li><a id="profileLink" href="/profile">Profile</a></li>
 					<li><a id="logout" href="/logout">Sign Out <span class="shiro-principal"></span></a></li>
 				</ul>

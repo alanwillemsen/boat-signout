@@ -24,7 +24,6 @@ package com.cilogi.shiro.web.user;
 import com.cilogi.shiro.gae.GaeUser;
 import com.cilogi.shiro.gae.GaeUserDAO;
 import com.cilogi.shiro.web.BaseServlet;
-import com.google.common.collect.Lists;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -32,18 +31,21 @@ import org.json.JSONObject;
 import javax.inject.Inject;
 import javax.inject.Provider;
 import javax.inject.Singleton;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
-import java.util.Set;
 import java.util.logging.Logger;
 
-import static com.googlecode.objectify.ObjectifyService.ofy;
-
+/**
+ * Returns the full member list as JSON for the admin members page (users.ftl). Admin only.
+ * The list is small (a single rowing club), so we load everything and let the page filter
+ * client-side rather than paginate. Dates are emitted as epoch millis (or null) and
+ * formatted in the browser.
+ */
 @Singleton
 public class UserListServlet extends BaseServlet {
     static final Logger LOG = Logger.getLogger(UserListServlet.class.getName());
@@ -53,79 +55,51 @@ public class UserListServlet extends BaseServlet {
         super(daoProvider);
     }
 
-
     @Override
-    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        if (!isCurrentUserAdmin()) {
+            issueJson(response, HTTP_STATUS_FORBIDDEN, MESSAGE, "Only admins can list members");
+            return;
+        }
         try {
-            int iDisplayStart = intParameter(DATATABLE_START, request, -1);
-            int iDisplayLength = intParameter(DATATABLE_LENGTH, request, -1);
-            String sSearch = request.getParameter(DATATABLE_SEARCH);
-            String sEcho = request.getParameter(DATATABLE_ECHO);
-            doOutput(response, sSearch, iDisplayStart, iDisplayLength, sEcho);
-        } catch (Exception e) {
-            LOG.severe("Error posting to list: " + e.getMessage());
+            List<GaeUser> users = new ArrayList<>(daoProvider.get().listAllUsers());
+            // Most recently active first; users who have never been seen sink to the bottom.
+            users.sort(Comparator.comparing(
+                    UserListServlet::lastActiveMillis, Comparator.reverseOrder()));
+
+            JSONArray array = new JSONArray();
+            for (GaeUser user : users) {
+                array.put(toJson(user));
+            }
+            JSONObject out = new JSONObject();
+            out.put("users", array);
+            issueJson(response, HTTP_STATUS_OK, out);
+        } catch (JSONException e) {
+            LOG.severe("Error building user list: " + e.getMessage());
             issue(MIME_TEXT_PLAIN, HTTP_STATUS_INTERNAL_SERVER_ERROR,
                     "Error generating JSON: " + e.getMessage(), response);
         }
     }
 
-    private void doOutput(HttpServletResponse response, String sSearch, int start, int length, String echo)
-            throws JSONException, IOException {
-        GaeUserDAO dao = new GaeUserDAO();
-        long nUsers = dao.getCount();
-        JSONObject obj = new JSONObject();
-        obj.put("iTotalRecords", nUsers);
-        obj.put("iTotalDisplayRecords", nUsers);
-        obj.put("sEcho", echo);
-
-        List<GaeUser> users = users(dao, sSearch, start, length);
-        JSONArray array = new JSONArray();
-        int index = 0;
-        for (GaeUser user : users) {
-            JSONArray arr = new JSONArray();
-            arr.put(user.getName());
-            arr.put(dateFrom(user.getDateRegistered()));
-            arr.put(set2string(user.getRoles()));
-            arr.put(String.format("<input data-start=\"%d\" data-length=\"%d\" type=\"checkbox\" name=\"%s\" %s>",
-                    start, length,
-                    user.getName(), user.isSuspended() ? "checked" : ""));
-            arr.put(String.format("<input data-start=\"%d\" data-length=\"%d\" data-index=\"%d\" type=\"button\" name=\"%s\" value=\"delete\">",
-                    start, length, index,
-                    user.getName()));
-            array.put(arr);
-            index++;
-        }
-        obj.put("aaData", array);
-        issueJson(response, HTTP_STATUS_OK, obj);
+    private static long lastActiveMillis(GaeUser user) {
+        Date d = user.getLastActive();
+        return d == null ? Long.MIN_VALUE : d.getTime();
     }
 
-    private List<GaeUser> users(GaeUserDAO dao, String sSearch, int start, int length) {
-        if (sSearch != null && !"".equals(sSearch)) {
-            return Lists.newArrayList(dao.findUser(sSearch));
-        } else {
-            List<GaeUser> list =  ofy().load().type(GaeUser.class)
-                    .offset(start)
-                    .limit(length)
-                    .order("-dateRegistered")
-                    .list();
-            LOG.info("Fresh load start " + start + " # " + length);
-            return list;
-        }
+    private static JSONObject toJson(GaeUser user) throws JSONException {
+        JSONObject o = new JSONObject();
+        o.put("name", user.getName());
+        o.put("displayName", user.getDisplayName() == null ? user.getName() : user.getDisplayName());
+        o.put("registered", millisOrNull(user.getDateRegistered()));
+        o.put("lastActive", millisOrNull(user.getLastActive()));
+        o.put("roles", new JSONArray(user.getRoles()));
+        o.put("admin", user.isAdmin());
+        o.put("suspended", user.isSuspended());
+        o.put("discord", user.getDiscordId() != null);
+        return o;
     }
 
-    private String dateFrom(Date date) {
-        return (date == null)
-                ? "<em>unregistered</em>"
-                : new SimpleDateFormat("MMM dd yyyy").format(date);
-    }
-
-    private String set2string(Set<String> set) {
-        boolean had = false;
-        String out = "";
-        for (String s : set) {
-            out += had ? "," + s : s;
-            had = true;
-        }
-        return out;
+    private static Object millisOrNull(Date date) {
+        return date == null ? JSONObject.NULL : date.getTime();
     }
 }

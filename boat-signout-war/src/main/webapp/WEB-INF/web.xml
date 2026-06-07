@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<web-app version="2.5" xmlns="http://java.sun.com/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://java.sun.com/xml/ns/javaee http://java.sun.com/xml/ns/javaee/web-app_2_5.xsd">
+<web-app version="3.1" xmlns="http://xmlns.jcp.org/xml/ns/javaee" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://xmlns.jcp.org/xml/ns/javaee http://xmlns.jcp.org/xml/ns/javaee/web-app_3_1.xsd">
   <security-constraint>
     <web-resource-collection>
       <web-resource-name>AppStats</web-resource-name>
@@ -47,6 +47,26 @@
     <extension>manifest</extension>
     <mime-type>text/cache-manifest</mime-type>
   </mime-mapping>
+  <!-- Keep members logged in for 90 days so they rarely have to re-authenticate.
+       Two things are needed for that:
+       (1) session-timeout: how long the SERVER keeps the session alive while idle.
+           In minutes: 90 days = 90 * 24 * 60 = 129600.
+       (2) cookie-config/max-age: makes the session cookie PERSISTENT on the client so
+           it survives the browser being closed (without this it's a "session cookie"
+           that dies on browser exit, forcing a re-login). In seconds: 90 days = 7776000.
+       http-only keeps the cookie away from JavaScript; secure restricts it to HTTPS
+       (the app already forces HTTPS via the CONFIDENTIAL transport-guarantee above).
+       Removing access does NOT depend on these expiring: deleting a user blocks them on
+       their next request, and suspending a user is enforced per-request (see
+       BaseServlet.getCurrentGaeUser). -->
+  <session-config>
+    <session-timeout>129600</session-timeout>
+    <cookie-config>
+      <http-only>true</http-only>
+      <secure>true</secure>
+      <max-age>7776000</max-age>
+    </cookie-config>
+  </session-config>
   <welcome-file-list>
     <welcome-file>index.html</welcome-file>
   </welcome-file-list>

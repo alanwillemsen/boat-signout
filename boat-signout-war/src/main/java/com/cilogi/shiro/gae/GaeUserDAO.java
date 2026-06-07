@@ -23,10 +23,13 @@ package com.cilogi.shiro.gae;
 
 
 import java.util.Date;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Logger;
 
 import com.googlecode.objectify.ObjectifyService;
+
+import static com.googlecode.objectify.ObjectifyService.ofy;
 
 public class GaeUserDAO extends BaseDAO<GaeUser> {
     static final Logger LOG = Logger.getLogger(GaeUserDAO.class.getName());
@@ -112,6 +115,14 @@ public class GaeUserDAO extends BaseDAO<GaeUser> {
         if (reg != null) {
             registraionDao.delete(code);
         }
+    }
+
+    /** All users. Going through the DAO (rather than calling ofy() directly from a servlet)
+     *  guarantees this class is loaded, and with it the static block that registers GaeUser
+     *  with Objectify -- otherwise a query can hit an instance where GaeUser was never
+     *  registered and fail with "No class ... was registered". */
+    public List<GaeUser> listAllUsers() {
+        return ofy().load().type(GaeUser.class).list();
     }
 
     public long getCount() {

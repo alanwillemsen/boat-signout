@@ -47,6 +47,7 @@ public class GaeUser implements Serializable {
     static final int HASH_ITERATIONS = 1;
     static final String HASH_ALGORITHM = Sha256Hash.ALGORITHM_NAME;
     public static final String ROLE_MEMBER = "MEMBER";
+    public static final String ROLE_ADMIN = "admin";
 
 
     @Id
@@ -78,6 +79,13 @@ public class GaeUser implements Serializable {
     private Date dateRegistered;
 
     private boolean isSuspended;
+
+    /** Last time this user was seen making a request. Updated (throttled) on activity in
+     *  BaseServlet.getCurrentGaeUser so admins can see who is still using the app. Now that
+     *  sessions last 90 days, login time is no longer a useful "last seen" proxy. Null until
+     *  first recorded. */
+    @Index
+    private Date lastActive;
 
     /** For objectify to create instances on retrieval */
     private GaeUser() {
@@ -143,6 +151,19 @@ public class GaeUser implements Serializable {
 
     public void setSuspended(boolean suspended) {
         isSuspended = suspended;
+    }
+
+    public Date getLastActive() {
+        return lastActive == null ? null : new Date(lastActive.getTime());
+    }
+
+    public void setLastActive(Date lastActive) {
+        this.lastActive = (lastActive == null) ? null : new Date(lastActive.getTime());
+    }
+
+    /** True if this user has the "admin" role (full permissions, see shiro.ini). */
+    public boolean isAdmin() {
+        return roles != null && roles.contains(ROLE_ADMIN);
     }
 
     public void setDisplayName(String displayName) {

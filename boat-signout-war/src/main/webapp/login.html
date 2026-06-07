@@ -40,6 +40,14 @@
         display: none;
     }
 
+    /* .shiro-admin elements are only for admins. Hide them in every state except when
+       status.js has added shiro-admin-active to <html> (i.e. the logged-in user is an admin). */
+    .shiro-none-active .shiro-admin,
+    .shiro-guest-active .shiro-admin,
+    .shiro-authenticated-active .shiro-admin {
+        display: none;
+    }
+
 </style>
 
 

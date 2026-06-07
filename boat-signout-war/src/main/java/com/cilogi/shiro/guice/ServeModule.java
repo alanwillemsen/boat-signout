@@ -43,6 +43,7 @@ import com.cilogi.shiro.web.user.RegisterServlet;
 import com.cilogi.shiro.web.user.SettingsServlet;
 import com.cilogi.shiro.web.user.StatusServlet;
 import com.cilogi.shiro.web.user.UserListServlet;
+import com.cilogi.shiro.web.user.UserRoleServlet;
 import com.cilogi.shiro.web.user.UserSuspendServlet;
 import com.cilogi.shiro.web.discord.DiscordAuthServlet;
 //import com.google.appengine.tools.appstats.AppstatsFilter;
@@ -50,7 +51,7 @@ import com.cilogi.shiro.web.discord.DiscordAuthServlet;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.inject.servlet.ServletModule;
-import com.googlecode.objectify.cache.AsyncCacheFilter;
+import com.googlecode.objectify.ObjectifyFilter;
 
 
 public class ServeModule extends ServletModule {
@@ -66,8 +67,16 @@ public class ServeModule extends ServletModule {
     @Override
     protected void configureServlets() {
         LOG.warning(userBaseUrl);
+        // ObjectifyFilter MUST be outermost. It begins a fresh Objectify context (empty
+        // session cache) for the request and calls ObjectifyService.reset() at the end.
+        // Without it, Objectify lazily creates one context per worker thread and never resets
+        // it, so the session cache leaks across requests: an updated entity then reads stale
+        // on whichever instance/thread still holds the old copy (random per request, and the
+        // cause of the "admin checkbox flips on refresh" bug). It runs AsyncCacheFilter
+        // internally, so it replaces the standalone one. Being outermost also means the Shiro
+        // realms' datastore reads run inside the managed (and reset) context.
+        filter("/*").through(ObjectifyFilter.class);
         filter("/*").through(ShiroFilter.class);
-        filter("/*").through(AsyncCacheFilter.class);
 //        filter("/*").through(AppstatsFilter.class, map("calculateRpcCosts", "true"));
 
         serve("*.ftl").with(FreemarkerServlet.class);
@@ -79,6 +88,7 @@ public class ServeModule extends ServletModule {
         serve(userBaseUrl + "/status").with(StatusServlet.class);
         serve(userBaseUrl + "/list").with(UserListServlet.class);
         serve(userBaseUrl + "/suspend").with(UserSuspendServlet.class);
+        serve(userBaseUrl + "/role").with(UserRoleServlet.class);
         serve(userBaseUrl + "/settings*").with(SettingsServlet.class);
         serve("/picture*").with(ProfilePictureServlet.class);
         serve("/profile*").with(ProfileServlet.class);
